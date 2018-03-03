@@ -152,7 +152,7 @@ typecheckMd coursierPath parsedMd = do
       logger $ "Wrote " <> (tutDir </> destFilename)
 
 runTut :: CoursierLauncherPath -> TutDirectory -> MdDirectory -> ScalaVersion -> [CoursierDep] -> IO ()
-runTut coursier (TutDirectory tutDir) (MdDirectory mdDir) (ScalaVersion scalaVer) deps = do
+runTut coursier (TutDirectory tutDir) (MdDirectory mdDir) sc@(ScalaVersion scalaVer) deps = do
   let args = [ "launch", "-r", "https://dl.bintray.com/tpolecat/maven/", "org.tpolecat::tut-core:0.6.3"
              , "-e", scalaVer
              , "--"
@@ -160,8 +160,8 @@ runTut coursier (TutDirectory tutDir) (MdDirectory mdDir) (ScalaVersion scalaVer
              , mdDir
              , ".*\\.md$" ]
 
-  depEntries <- join <$> forM deps (coursierGenClasspath coursier)
-  let classpathArgs = ["-classpath", intercalate ":" $ unClasspathEntry <$> depEntries]
+  depEntries <- join <$> forM deps (coursierGenClasspath coursier sc)
+  let classpathArgs = ["-classpath", intercalate ":" $ unClasspathEntry <$> depEntries, "-Ypartial-unification"]
   runProcess_ $ tutProcess coursier args classpathArgs
   where
     tutProcess coursier args classpathArgs =
@@ -169,9 +169,18 @@ runTut coursier (TutDirectory tutDir) (MdDirectory mdDir) (ScalaVersion scalaVer
       $ setStderr (useHandleOpen stderr)
       $ proc (unLauncherPath coursier) (args <> classpathArgs)
 
-coursierGenClasspath :: CoursierLauncherPath -> CoursierDep -> IO [ClasspathEntry]
-coursierGenClasspath coursier (CoursierDep dep) = do
-  (out, err) <- readProcess_ (proc (unLauncherPath coursier) ["fetch", "-r", "central" , "-r", "bintray:bintray/jcenter", "-p", dep])
+coursierGenClasspath :: CoursierLauncherPath -> ScalaVersion -> CoursierDep -> IO [ClasspathEntry]
+coursierGenClasspath (CoursierLauncherPath coursier) (ScalaVersion scalaVer) (CoursierDep dep) = do
+  let args = [ "fetch"
+             , "-e"
+             , scalaVer
+             , "-r"
+             , "central"
+             , "-r"
+             , "bintray:bintray/jcenter"
+             , "-p"
+             , dep ]
+  (out, err) <- readProcess_ (proc coursier args)
   let entries = filter (not . BS.null) $ BS.split '\n' out
       stripped = BS.dropWhile (== '\n') . BS.reverse . BS.dropWhile (== '\n') . BS.reverse <$> entries
   return $ ClasspathEntry . BS.unpack <$> entries
