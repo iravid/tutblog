@@ -153,7 +153,7 @@ typecheckMd coursierPath parsedMd = do
 
 runTut :: CoursierLauncherPath -> TutDirectory -> MdDirectory -> ScalaVersion -> [CoursierDep] -> IO ()
 runTut coursier (TutDirectory tutDir) (MdDirectory mdDir) (ScalaVersion scalaVer) deps = do
-  let args = [ "launch", "-r", "https://dl.bintray.com/tpolecat/maven/", "org.tpolecat::tut-core:0.5.5"
+  let args = [ "launch", "-r", "https://dl.bintray.com/tpolecat/maven/", "org.tpolecat::tut-core:0.6.3"
              , "-e", scalaVer
              , "--"
              , tutDir
